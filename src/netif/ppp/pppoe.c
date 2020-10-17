@@ -175,11 +175,28 @@ ppp_pcb *pppoe_create(struct netif *pppif,
 {
   ppp_pcb *ppp;
   struct pppoe_softc *sc;
-#if !PPPOE_SCNAME_SUPPORT
+#if PPPOE_SCNAME_SUPPORT
+  size_t l;
+#else /* PPPOE_SCNAME_SUPPORT */
   LWIP_UNUSED_ARG(service_name);
   LWIP_UNUSED_ARG(concentrator_name);
-#endif /* !PPPOE_SCNAME_SUPPORT */
+#endif /* PPPOE_SCNAME_SUPPORT */
   LWIP_ASSERT_CORE_LOCKED();
+
+#if PPPOE_SCNAME_SUPPORT
+  /*
+   * Check that service_name and concentrator_name strings length will
+   * not trigger integer overflows when computing packets length.
+   */
+  l = strlen(service_name);
+  if (l > 1024) {
+    return NULL;
+  }
+  l = strlen(concentrator_name);
+  if (l > 1024) {
+    return NULL;
+  }
+#endif /* PPPOE_SCNAME_SUPPORT */
 
   sc = (struct pppoe_softc *)LWIP_MEMPOOL_ALLOC(PPPOE_IF);
   if (sc == NULL) {
@@ -753,20 +770,20 @@ pppoe_send_padi(struct pppoe_softc *sc)
 {
   struct pbuf *pb;
   u8_t *p;
-  int len;
+  size_t len;
 #if PPPOE_SCNAME_SUPPORT
-  int l1 = 0, l2 = 0; /* XXX: gcc */
+  size_t l1 = 0, l2 = 0; /* XXX: gcc */
 #endif /* PPPOE_SCNAME_SUPPORT */
 
   /* calculate length of frame (excluding ethernet header + pppoe header) */
   len = 2 + 2 + 2 + 2 + sizeof sc;  /* service name tag is required, host unique is send too */
 #if PPPOE_SCNAME_SUPPORT
   if (sc->sc_service_name != NULL) {
-    l1 = (int)strlen(sc->sc_service_name);
+    l1 = strlen(sc->sc_service_name);
     len += l1;
   }
   if (sc->sc_concentrator_name != NULL) {
-    l2 = (int)strlen(sc->sc_concentrator_name);
+    l2 = strlen(sc->sc_concentrator_name);
     len += 2 + 2 + l2;
   }
 #endif /* PPPOE_SCNAME_SUPPORT */
