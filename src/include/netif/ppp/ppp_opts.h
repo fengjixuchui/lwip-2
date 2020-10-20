@@ -185,20 +185,6 @@
 #endif
 
 /**
- * pbuf_type PPP is using for LCP, PAP, CHAP, EAP, CCP, IPCP and IP6CP packets.
- *
- * Memory allocated must be single buffered for PPP to works, it requires pbuf
- * that are not going to be chained when allocated. This requires setting
- * PBUF_POOL_BUFSIZE to at least 512 bytes, which is quite huge for small systems.
- *
- * Setting PPP_USE_PBUF_RAM to 1 makes PPP use memory from heap where continuous
- * buffers are required, allowing you to use a smaller PBUF_POOL_BUFSIZE.
- */
-#ifndef PPP_USE_PBUF_RAM
-#define PPP_USE_PBUF_RAM                0
-#endif
-
-/**
  * PPP_FCS_TABLE: Keep a 256*2 byte table to speed up FCS calculation for PPPoS
  */
 #ifndef PPP_FCS_TABLE
@@ -509,28 +495,33 @@
  */
 
 /**
- * PPP_MRU: Default MRU
+ * PPP_MRU: MRU value we want to negotiate (peer MTU)
+ *
+ * It only affects PPPoS because PPPoE value is derived from the
+ * Ethernet interface MTU and PPPoL2TP have a separate setting.
  */
 #ifndef PPP_MRU
 #define PPP_MRU                         1500
 #endif
 
 /**
- * PPP_DEFMRU: Default MRU to try
- */
-#ifndef PPP_DEFMRU
-#define PPP_DEFMRU                      1500
-#endif
-
-/**
- * PPP_MAXMRU: Normally limit MRU to this (pppd default = 16384)
+ * PPP_MAXMRU: Normally limit peer MRU to this
+ *
+ * This is the upper limit value to which we set our interface MTU.
+ * If the peer sends a larger number, we will just ignore it as we
+ * are not required to maximize the use of the peer capacity.
+ *
+ * It only affects PPPoS because PPPoE value is derived from the
+ * Ethernet interface MTU and PPPoL2TP have a separate setting.
  */
 #ifndef PPP_MAXMRU
 #define PPP_MAXMRU                      1500
 #endif
 
 /**
- * PPP_MINMRU: No MRUs below this
+ * PPP_MINMRU: No peer MRUs below this
+ *
+ * Peer must be able to receive at least our minimum MTU.
  */
 #ifndef PPP_MINMRU
 #define PPP_MINMRU                      128

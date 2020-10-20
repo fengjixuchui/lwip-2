@@ -440,7 +440,7 @@ static void pppol2tp_input(void *arg, struct udp_pcb *pcb, struct pbuf *p, const
 
   /* printf("LEN=%d, TUNNEL_ID=%d, SESSION_ID=%d, NS=%d, NR=%d, OFFSET=%d\n", len, tunnel_id, session_id, ns, nr, offset); */
   PPPDEBUG(LOG_DEBUG, ("pppol2tp: input packet, len=%"U16_F", tunnel=%"U16_F", session=%"U16_F", ns=%"U16_F", nr=%"U16_F"\n",
-    len, tunnel_id, session_id, ns, nr));
+    p->tot_len, tunnel_id, session_id, ns, nr));
 
   /* Control packet */
   if (hflags & PPPOL2TP_HEADERFLAG_CONTROL) {
@@ -530,6 +530,11 @@ static void pppol2tp_dispatch_control_packet(pppol2tp_pcb *l2tp, u16_t port, str
   l2tp->peer_ns = ns+1;
 
   p = pbuf_coalesce(p, PBUF_RAW);
+  if (p->next != NULL) {
+    PPPDEBUG(LOG_DEBUG, ("pppol2tp: pbuf_coalesce failed: %d\n", p->tot_len));
+    return;
+  }
+
   inp = (u8_t*)p->payload;
   /* Decode AVPs */
   while (p->len > 0) {
@@ -749,7 +754,6 @@ static void pppol2tp_timeout(void *arg) {
       retry_wait = LWIP_MIN(PPPOL2TP_CONTROL_TIMEOUT * l2tp->sccrq_retried, PPPOL2TP_SLOW_RETRY);
       PPPDEBUG(LOG_DEBUG, ("pppol2tp: sccrq_retried=%d\n", l2tp->sccrq_retried));
       if ((err = pppol2tp_send_sccrq(l2tp)) != 0) {
-        l2tp->sccrq_retried--;
         PPPDEBUG(LOG_DEBUG, ("pppol2tp: failed to send SCCRQ, error=%d\n", err));
         LWIP_UNUSED_ARG(err); /* if PPPDEBUG is disabled */
       }
@@ -765,7 +769,6 @@ static void pppol2tp_timeout(void *arg) {
       PPPDEBUG(LOG_DEBUG, ("pppol2tp: icrq_retried=%d\n", l2tp->icrq_retried));
       if ((s16_t)(l2tp->peer_nr - l2tp->our_ns) < 0) { /* the SCCCN was not acknowledged */
         if ((err = pppol2tp_send_scccn(l2tp, l2tp->our_ns -1)) != 0) {
-          l2tp->icrq_retried--;
           PPPDEBUG(LOG_DEBUG, ("pppol2tp: failed to send SCCCN, error=%d\n", err));
           LWIP_UNUSED_ARG(err); /* if PPPDEBUG is disabled */
           sys_timeout(PPPOL2TP_CONTROL_TIMEOUT, pppol2tp_timeout, l2tp);
@@ -773,7 +776,6 @@ static void pppol2tp_timeout(void *arg) {
         }
       }
       if ((err = pppol2tp_send_icrq(l2tp, l2tp->our_ns)) != 0) {
-        l2tp->icrq_retried--;
         PPPDEBUG(LOG_DEBUG, ("pppol2tp: failed to send ICRQ, error=%d\n", err));
         LWIP_UNUSED_ARG(err); /* if PPPDEBUG is disabled */
       }
@@ -788,7 +790,6 @@ static void pppol2tp_timeout(void *arg) {
       }
       PPPDEBUG(LOG_DEBUG, ("pppol2tp: iccn_retried=%d\n", l2tp->iccn_retried));
       if ((err = pppol2tp_send_iccn(l2tp, l2tp->our_ns)) != 0) {
-        l2tp->iccn_retried--;
         PPPDEBUG(LOG_DEBUG, ("pppol2tp: failed to send ICCN, error=%d\n", err));
         LWIP_UNUSED_ARG(err); /* if PPPDEBUG is disabled */
       }
